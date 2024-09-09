@@ -20,13 +20,15 @@ class EmailEntry(db.Model):
     def __init__(self, email):
         self.email = email
 
-# データベースの初期化
-@app.before_first_request
+# アプリケーション起動時にテーブルを作成
 def create_tables():
-    try:
-        db.create_all()
-    except Exception as e:
-        print(f"Error creating tables: {e}")
+    with app.app_context():
+        try:
+            db.create_all()
+        except Exception as e:
+            print(f"Error creating tables: {e}")
+
+create_tables()
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
