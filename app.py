@@ -20,15 +20,10 @@ class EmailEntry(db.Model):
     def __init__(self, email):
         self.email = email
 
-# アプリケーション起動時にテーブルを作成
+# データベースの初期化
+@app.before_first_request
 def create_tables():
-    with app.app_context():
-        try:
-            db.create_all()
-        except Exception as e:
-            print(f"Error creating tables: {e}")
-
-create_tables()
+    db.create_all()
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -43,7 +38,6 @@ def index():
                 db.session.commit()
                 return redirect(url_for('success'))
             except Exception as e:
-                db.session.rollback()
                 return render_template('index.html', error=f"Failed to save to database: {e}")
         else:
             return render_template('index.html', error="Invalid email address. Please try again.", email=email)
