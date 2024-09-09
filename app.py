@@ -20,11 +20,6 @@ class EmailEntry(db.Model):
     def __init__(self, email):
         self.email = email
 
-# データベースの初期化
-@app.before_first_request
-def create_tables():
-    db.create_all()
-
 @app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
@@ -51,6 +46,10 @@ def validate_email(email):
     import re
     pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
     return re.match(pattern, email) is not None
+
+# アプリケーション起動時にテーブルを作成
+with app.app_context():
+    db.create_all()
 
 if __name__ == '__main__':
     app.run(debug=True)
