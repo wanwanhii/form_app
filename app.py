@@ -23,7 +23,10 @@ class EmailEntry(db.Model):
 # データベースの初期化
 @app.before_first_request
 def create_tables():
-    db.create_all()
+    try:
+        db.create_all()
+    except Exception as e:
+        print(f"Error creating tables: {e}")
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
@@ -36,9 +39,10 @@ def index():
                 new_entry = EmailEntry(email=email)
                 db.session.add(new_entry)
                 db.session.commit()
+                return redirect(url_for('success'))
             except Exception as e:
+                db.session.rollback()
                 return render_template('index.html', error=f"Failed to save to database: {e}")
-            return redirect(url_for('success'))
         else:
             return render_template('index.html', error="Invalid email address. Please try again.", email=email)
     return render_template('index.html')
