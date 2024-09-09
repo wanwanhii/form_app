@@ -1,47 +1,37 @@
-from flask import Flask, render_template, request, redirect, url_for, session
-import csv
-import re
-from datetime import datetime, timedelta, timezone
+from flask import Flask, request, render_template, redirect, url_for
+from flask_sqlalchemy import SQLAlchemy
+import os
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'  # セッションの暗号化に必要なキー
+app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 
-# メールアドレスの正規表現パターン
-EMAIL_REGEX = r'^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$'
+class Email(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(255), nullable=False)
+    timestamp = db.Column(db.DateTime, default=db.func.current_timestamp(), nullable=False)
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    # セッションからメッセージを取得して初期化
-    message = session.pop('message', '')
-    user_input = ''
-    
     if request.method == 'POST':
-        user_input = request.form['user_input']
-        
-        # バリデーション: メールアドレスの形式をチェック
-        if not re.match(EMAIL_REGEX, user_input):
-            message = 'Invalid email address. Please try again.'
-        else:
+        email_address = request.form.get('email')
+        if email_address and '@' in email_address:
+            new_email = Email(email=email_address)
             try:
-                # 現在の日本時間を取得
-                jst = timezone(timedelta(hours=9))  # 日本標準時 (UTC+9)
-                now = datetime.now(jst)
-                timestamp = now.strftime('%Y-%m-%d %H:%M:%S')
-
-                # メールアドレスと登録日時を保存
-                with open('data.csv', 'a', newline='') as csvfile:
-                    writer = csv.writer(csvfile)
-                    writer.writerow([user_input, timestamp])
-                
-                # メッセージをセッションに保存してリダイレクト
-                session['message'] = 'Your email has been recorded!'
-                return redirect(url_for('index'))
-            except PermissionError:
-                message = 'There was a problem saving your data. Please check file permissions.'
+                db.session.add(new_email)
+                db.session.commit()
+                return redirect(url_for('success'))
             except Exception as e:
-                message = f'An unexpected error occurred: {e}'
-    
-    return render_template('index.html', user_input=user_input, message=message)
+                db.session.rollback()
+                print(f"Error: {e}")
+        else:
+            return render_template('index.html', error='Invalid email address. Please try again.', email=email_address)
+    return render_template('index.html')
+
+@app.route('/success')
+def success():
+    return "Data added successfully!"
 
 if __name__ == '__main__':
     app.run(debug=True)
